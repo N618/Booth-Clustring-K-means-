@@ -1,58 +1,106 @@
-# Booth Clustering for Assembly Selection
+# 📌 Booth Clustering and Validation for Assembly Constituency Analysis
 
-This Jupyter Notebook is designed for performing **booth-level clustering** using geospatial data across different assembly constituencies. It is specifically tailored to process shapefiles representing polling booths and apply clustering techniques to select representative booths from a region (e.g., Telangana, Andhra Pradesh).
+This notebook provides a complete geospatial pipeline for **booth-level clustering**, **spatial containment validation**, **interactive visualization**, and **representative booth pair selection** for field analysis across Indian Assembly Constituencies (ACs).
+
+---
 
 ## 📁 Input Data
 
-The notebook uses the following input:
+* **Booth Shapefile**: Geospatial point data (e.g., `andhrapradesh.booth.shp`)
+* **AC Boundary Shapefile**: Used for spatial validation
+* *(Optional)* Excel/CSV output paths for storing results
 
-* **Shapefile** containing booth locations:
+---
 
-  ```
-  andhrapradesh.booth.shp
-  ```
+## ⚙️ Libraries Used
 
-  This file contains geospatial point data representing booth locations, along with attributes like assembly constituency (`ac`) and other metadata.
+* `pandas`, `numpy`: Data operations
+* `geopandas`, `shapely`: Geospatial handling
+* `folium`: Interactive mapping
+* `json`: GeoJSON formatting
+* `sklearn`: KMeans clustering
+* `geopy`: Geodesic distance calculations
 
-## ⚙️ Key Libraries Used
-
-* `pandas` & `numpy`: Data manipulation.
-* `geopandas`: Handling geospatial vector data.
-* `shapely`: For geometry operations.
-* `folium`: For map visualization.
+---
 
 ## 🚦 Workflow Overview
 
-1. **Load Booth Shapefile**
-   Load and visualize booth location data from a `.shp` file.
+### 1. **Load and Preprocess Booth Data**
 
-2. **Filter by Constituency**
-   Select booths from a list of assembly constituencies (e.g., 1 to 119).
+* Load booth shapefiles using `GeoPandas`
+* Filter specific ACs
+* Remove duplicate geometries
+* Extract `lat` and `lng` from booth point geometries
 
-3. **Geometry Cleanup**
-   Remove duplicate booth geometries.
+---
 
-4. **Extract Coordinates**
-   Compute latitude and longitude from the booth's `Point` geometry.
+### 2. **Geospatial Validation: Booth Inside AC**
 
-5. *(Optional Next Steps)*
-   * Apply a clustering algorithm (e.g., KMeans, DBSCAN) based on spatial proximity.
-   * Visualize clustered booths using `folium` maps.
-   * Select a representative booth from each cluster.
+* Create temporary `Point` objects for each booth
+* Check if each booth lies **within its AC boundary**
+* Add a `'status'` column to label each booth as `'inside'` or `'outside'`
 
-## 📌 Output
+✅ Helps catch spatial data errors or misalignments.
 
-The expected output is:
+---
 
-* A filtered and cleaned GeoDataFrame of booth locations.
-* Optionally, clustered booth groups with geographic centroids or sample booths for further analysis or on-ground deployment.
+### 3. **Booth Clustering Using KMeans**
 
-## ✅ Prerequisites
+* For each AC:
 
-Before running the notebook, make sure you have the following installed:
+  * Apply KMeans clustering (e.g., 12 clusters)
+  * Use latitude and longitude as features
+  * Assign cluster labels to each booth
+
+✅ Enables **grouping nearby booths** for sampling or coverage planning.
+
+---
+
+### 4. **Interactive Mapping with Folium**
+
+* For each AC:
+
+  * Render AC boundary and clustered booths on a **Folium map**
+  * Save each as a standalone HTML file
+
+✅ Interactive maps for **visual validation**, review, or sharing.
+
+---
+
+### 5. **Select Representative Booth Pairs by Cluster**
+
+* For each cluster within each AC:
+
+  * If only 1 booth: include as-is with `NaN` for second point
+  * If multiple booths:
+
+    * Calculate **pairwise great-circle distances**
+    * Select a pair with **distance between 500m and 5000m**, if available
+    * If not, fall back to first two booths
+* Result is a table of **selected booth pairs per cluster** with distance in meters
+
+✅ Ensures representative **booth-pair selection** for audits, polling experiments, or targeted interventions.
+
+---
+
+## ✅ Setup Instructions
+
+Install the required libraries:
 
 ```bash
-pip install pandas geopandas shapely folium
+pip install pandas geopandas shapely folium scikit-learn geopy
 ```
 
-Also, ensure that the shapefile and its associated files (.shx, .dbf, etc.) are correctly located at the path specified in the notebook.
+Ensure that all shapefile components (`.shp`, `.shx`, `.dbf`, etc.) are in the appropriate directory.
+
+---
+
+## 📦 Output Files
+
+* `Telengana_ac##_sample_maps.html`: Interactive maps with AC boundaries and booths
+* `selected_pairs_df`: Final DataFrame of selected booth pairs with distances
+* Updated booth dataset with:
+
+  * `lat`, `lng`: Coordinates
+  * `status`: `'inside'` or `'outside'`
+  * `cluster`: Cluster number from KMeans
